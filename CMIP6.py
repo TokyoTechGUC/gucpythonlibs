@@ -3,7 +3,7 @@ import requests
 import xml.etree.ElementTree as ET
 import numpy
 
-'''
+"""
 The following lists the arguments that can be used:
 
 mip_era, activity_id, model_cohort, product, source_id, institution_id, source_type, source_id, institution_id, source_type, nominal_resolution, experiment_id, sub_experiment_id, variant_label, grid_label, table_id, frequency, realm, variable_id, cf_standard_name, data_node (for the specific entries refer to the search page directly: https://esgf-node.llnl.gov/search/cmip6/
@@ -18,26 +18,33 @@ I got the original version from a word document published by ESGF
 https://docs.google.com/document/d/1pxz1Kd3JHfFp8vR2JCVBfApbsHmbUQQstifhGNdc6U0/edit?usp=sharing
 
 API AT: https://github.com/ESGF/esgf.github.io/wiki/ESGF_Search_REST_API#results-pagination
-'''
+"""
 
-def esgf_search(server="https://esgf-node.llnl.gov/esg-search/search",
-                files_type="OPENDAP", local_node=True, project="CMIP6",
-                verbose=False, format="application%2Fsolr%2Bjson",
-                use_csrf=False, **search):
+
+def esgf_search(
+    server="https://esgf-node.llnl.gov/esg-search/search",
+    files_type="OPENDAP",
+    local_node=True,
+    project="CMIP6",
+    verbose=False,
+    format="application%2Fsolr%2Bjson",
+    use_csrf=False,
+    **search
+):
     client = requests.session()
     payload = search
     payload["project"] = project
-    payload["type"]= "File"
+    payload["type"] = "File"
     if local_node:
         payload["distrib"] = "false"
     if use_csrf:
         client.get(server)
-        if 'csrftoken' in client.cookies:
+        if "csrftoken" in client.cookies:
             # Django 1.6 and up
-            csrftoken = client.cookies['csrftoken']
+            csrftoken = client.cookies["csrftoken"]
         else:
             # older versions
-            csrftoken = client.cookies['csrf']
+            csrftoken = client.cookies["csrf"]
         payload["csrfmiddlewaretoken"] = csrftoken
 
     payload["format"] = format
@@ -63,7 +70,7 @@ def esgf_search(server="https://esgf-node.llnl.gov/esg-search/search",
         for d in resp:
             if verbose:
                 for k in d:
-                    print("{}: {}".format(k,d[k]))
+                    print("{}: {}".format(k, d[k]))
             url = d["url"]
             for f in d["url"]:
                 sp = f.split("|")
