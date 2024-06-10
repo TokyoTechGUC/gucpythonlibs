@@ -1,4 +1,5 @@
 #!/gs/bs/tga-guc-lab/dependencies/dependencies_intel/conda/envs/guconda/bin/python
+import mpi4py.MPI
 import numpy as np
 import netCDF4 as nc
 from wrf import getvar
@@ -316,7 +317,10 @@ def Bernard(tas,dewp):
 	ed = c1*np.exp((c2*dewp)/(c3+dewp))
 	def func_to_opt_Bernard(TT):
 		return np.abs(c4*ed-c5*ed*TT-c4*c1*np.exp((c2*TT)/(c3+TT))+c5*c1*np.exp((c2*TT)/(c3+TT))*TT+c6*(tas-TT))
-	Tpwb = optimize.minimize_scalar(func_to_opt_Bernard,method='bounded',bounds=(np.min(dewp-2.5),np.max(tas+2.5))).x
+	lowbound = np.min(dewp)-2.5
+	upbound = np.max(tas)+2.5
+	if(lowbound>upbound):lowbound = upbound - 5.0
+	Tpwb = optimize.minimize_scalar(func_to_opt_Bernard,method='bounded',bounds=(lowbound,upbound)).x
 	return Tpwb+273.15
 
 def globe_temp(Tair,relh,Pair,wind,MinWindSpeed,radiation,propDirect,cza,SurfAlbedo=0.4):
@@ -382,7 +386,10 @@ def natglob_temp(Tair,dewp,RH,Pair,wind,MinWindSpeed,radiation,propDirect,cza,ir
 		Twb = Tair - evap/ratio*(ewick-eair)/(Pair-ewick)*(Pr/Sc)**0.56+Fatm/h*irad
 		return np.abs(Twb-Twb_prev)
 	#Tnwb = optimize.brent(func_to_opt_natglob,brack=(np.min(dewp-2.0),np.max(Tair+1.0)))
-	Tnwb = optimize.minimize_scalar(func_to_opt_natglob,method='bounded',bounds=(np.min(dewp-2.5),np.max(Tair+2.5))).x
+	lowbound = np.min(dewp)-2.5
+	upbound = np.max(Tair)+2.5
+	if(lowbound>upbound):lowbound = upbound - 5.0
+	Tnwb = optimize.minimize_scalar(func_to_opt_natglob,method='bounded',bounds=(lowbound,upbound)).x
 	return Tnwb
 
 def diffusivity(Tk,Pair):
@@ -464,5 +471,13 @@ def find_closest(A,target):
 	return idx
 
 if __name__=="__main__":
-	import sys
-	heat_index_wrf(str(sys.argv[1]))
+	filelist = glob('./**/wrfout*00',recursive=True)
+	#highdom=max([int(ifil.split('_')[-3].replace('d','')) for ifil in filelist])
+	#filelist = glob(f'./**/wrfout*d{highdom:02d}*',recursive=True)
+	rank = mpi4py.MPI.COMM_WORLD.Get_rank()
+	size = mpi4py.MPI.COMM_WORLD.Get_size()
+	if rank==0:
+		print(f"Found {len(filelist)} wrfout files.")
+	for i,ifil in enumerate(filelist):
+		if i%size!=rank: continue
+		heat_index_wrf(ifil)
